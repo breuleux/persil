@@ -16,7 +16,7 @@ from .common import one_test_per_assert
 @pytest.fixture
 def some_history():
     return [
-        {"serial": i, "time": i, "data": {"value": ((i - 50) / 50) ** 2}}
+        {"serial": i, "timestamp": i, "data": {"value": ((i - 50) / 50) ** 2}}
         for i in range(100)
     ]
 

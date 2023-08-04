@@ -1,7 +1,10 @@
 import json
+import time
 from datetime import datetime
 from hashlib import md5
 from pathlib import Path
+
+from .retain import RetentionApplicator, every
 
 
 class JSONSerializer:
@@ -46,7 +49,7 @@ class State:
         self.configure(
             key=None,
             serializer=JSONSerializer(),
-            retain=None,
+            retain=every(1),
             basedir=".",
         )
 
@@ -62,13 +65,17 @@ class State:
     def _history(self):
         return self._metadata["history"]
 
+    @_history.setter
+    def _history(self, history):
+        self._metadata["history"] = history
+
     def configure(self, key=None, serializer=None, retain=None, basedir=None):
         if self._loaded:
             raise Exception("Cannot configure the state object after loading.")
         if basedir is not None:
             self.basedir = Path(basedir)
-        # if retain is not None:
-        #     self.retain = retain
+        if retain is not None:
+            self.retain = RetentionApplicator(policy=retain, culler=self._cull)
         if serializer is not None:
             self.serializer = serializer
         if key is not None:
@@ -76,6 +83,10 @@ class State:
             self.keyhash = md5(json.dumps(key).encode("utf8")).hexdigest()
             self.directory = self.basedir / self.keyhash
             self._latest = self.serializer.extension(self.directory / "latest")
+
+    def _cull(self, entry):
+        pth = Path(entry["fullpath"])
+        pth.unlink(missing_ok=True)
 
     def snapshot_file(self):
         now = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
@@ -127,19 +138,24 @@ class State:
         json.dump(fp=metafile.open("w"), obj=self._metadata, indent=4)
 
     def save(self):
-        self.directory.mkdir(parents=True, exist_ok=True)
         self.load_metadata()
-        self._latest.unlink(missing_ok=True)
         snapshot_file = self.snapshot_file()
-        self.serializer.save(snapshot_file.open("w"), self.values)
-        self._latest.symlink_to(snapshot_file.name)
-        self._history.append(
-            {
-                "serial": self._serial,
-                "run": self._metadata["num_runs"],
-                "filename": str(snapshot_file.name),
-                "time": str(datetime.now()),
-            }
-        )
+        entry = {
+            "serial": self._serial,
+            "run": self._metadata["num_runs"],
+            "filename": str(snapshot_file.name),
+            "fullpath": str(snapshot_file.absolute()),
+            "timestamp": time.time(),
+            "data": self.values,
+        }
         self._serial += 1
-        self.save_metadata()
+
+        retain, new_history = self.retain(entry, self._history)
+        if retain:
+            self.directory.mkdir(parents=True, exist_ok=True)
+            self._latest.unlink(missing_ok=True)
+            self.serializer.save(snapshot_file.open("w"), self.values)
+            self._latest.symlink_to(snapshot_file.name)
+            del entry["data"]
+            self._history = new_history
+            self.save_metadata()

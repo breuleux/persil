@@ -60,8 +60,8 @@ class ThrottledRetention(RetentionPolicy):
     def include_next(self, entry, history):
         if not history:
             return True
-        now = entry["time"]
-        last = history[-1]["time"]
+        now = entry["timestamp"]
+        last = history[-1]["timestamp"]
         if timedelta(seconds=now - last) >= self.delta:
             return True
         return False
@@ -115,18 +115,19 @@ class ExtremumRetention(RetentionPolicy):
 
 
 class LimitedRetention(RetentionPolicy):
-    def __init__(self, max_entries):
+    def __init__(self, max_entries, basis="timestamp"):
         self.max_entries = max_entries
+        self.basis = basis
 
     def desirability(self, history, index):
-        t = history[index]["time"]
+        t = history[index][self.basis]
         result = 0
         if index > 0:
-            result += t - history[index - 1]["time"]
+            result += t - history[index - 1][self.basis]
         else:
             result += 100
         if index < len(history) - 1:
-            result += history[index + 1]["time"] - t
+            result += history[index + 1][self.basis] - t
         else:
             result += 100
         return result
