@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "persil"
+version = "0.1.0"
+description = "Checkpointing and watching"
+authors = ["Olivier Breuleux <breuleux@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+ptera = "^1.4.1"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.3.0"
+ruff = "^0.0.277"
+pytest = "^7.4.0"
+pytest-cov = "^4.1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 99
+extend-select = ["I"]
