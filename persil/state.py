@@ -12,10 +12,10 @@ class JSONSerializer:
         return pth.with_suffix(".json")
 
     def load(self, file):
-        return json.load(fp=file)
+        return json.load(fp=file.open("r"))
 
     def save(self, file, data):
-        json.dump(fp=file, obj=data)
+        json.dump(fp=file.open("w"), obj=data)
 
     def __repr__(self):
         return f"{self.__class__.__qualname__}()"
@@ -31,10 +31,10 @@ class TorchSerializer:
         return pth.with_suffix(".pt")
 
     def load(self, file):
-        return self.torch.load(file)
+        return self.torch.load(file.open("rb"))
 
     def save(self, file, data):
-        self.torch.save(data, file)
+        self.torch.save(data, file.open("wb"))
 
     def __repr__(self):
         return f"{self.__class__.__qualname__}()"
@@ -111,7 +111,7 @@ class State:
         if force or not self._loaded:
             self._loaded = True
             if self._latest.exists():
-                self.values = self.serializer.load(self._latest.open())
+                self.values = self.serializer.load(self._latest)
             else:
                 self.values = {}
         return self.values
@@ -154,7 +154,7 @@ class State:
         if retain:
             self.directory.mkdir(parents=True, exist_ok=True)
             self._latest.unlink(missing_ok=True)
-            self.serializer.save(snapshot_file.open("w"), self.values)
+            self.serializer.save(snapshot_file, self.values)
             self._latest.symlink_to(snapshot_file.name)
             del entry["data"]
             self._history = new_history
