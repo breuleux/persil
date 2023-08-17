@@ -94,6 +94,9 @@ class State:
             self.directory / datetime.now().strftime(f"{self._serial:09d}_{now}")
         )
 
+    def __contains__(self, item):
+        return item in self.values
+
     def __getitem___(self, item):
         return self.values[item]
 
@@ -134,6 +137,7 @@ class State:
             self.save_metadata()
 
     def save_metadata(self):
+        self.directory.mkdir(parents=True, exist_ok=True)
         metafile = self.directory / "metadata.json"
         json.dump(fp=metafile.open("w"), obj=self._metadata, indent=4)
 
