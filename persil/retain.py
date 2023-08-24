@@ -114,6 +114,23 @@ class ExtremumRetention(RetentionPolicy):
         }
 
 
+class ConditionalRetention(RetentionPolicy):
+    def __init__(self, conditions):
+        self.conditions = {
+            k: check if callable(check) else lambda x, check=check: x == check
+            for k, check in conditions.items()
+        }
+
+    def include_next(self, entry, history):
+        data = entry["data"]
+        for key, check in self.conditions.items():
+            value = data.get(key, None)
+            if check(value):
+                return True
+        else:
+            return False
+
+
 class LimitedRetention(RetentionPolicy):
     def __init__(self, max_entries, basis="timestamp"):
         self.max_entries = max_entries
@@ -176,6 +193,10 @@ def maximum(key):
 
 def at_most(max_entries):
     return LimitedRetention(max_entries=max_entries)
+
+
+def whenever(**conditions):
+    return ConditionalRetention(conditions)
 
 
 ######################
