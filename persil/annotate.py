@@ -35,24 +35,23 @@ class Interactor:
         return
 
 
-class AnnotatedState:
+class AnnotatedState(State):
+    """Global state that is associated to a ptera.tag.Tag."""
+
     def __init__(self, tag):
         self.tag = tag
-        self.state = State()
+        super().__init__()
 
     def decorate(self, fn):
         to_instrument = [Element(name=None, capture="it", category=self.tag)]
         tr = transform(
             fn,
-            proceed=lambda f: Interactor(f, self.state),
+            proceed=lambda f: Interactor(f, self),
             to_instrument=to_instrument,
             set_conformer=False,
             persist_annotations=True,
         )
         return tr
-
-    def save(self):
-        return self.state.save()
 
 
 persist = AnnotatedState(tag=Persist)

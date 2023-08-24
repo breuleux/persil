@@ -163,3 +163,6 @@ class State:
             del entry["data"]
             self._history = new_history
             self.save_metadata()
+
+    def state(self):
+        return self.values
