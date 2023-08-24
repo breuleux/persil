@@ -209,16 +209,17 @@ class RetentionApplicator:
         self.policy = policy
         self.culler = culler
 
-    def __call__(self, entry, history):
+    def __call__(self, entry, history, calculate_history=True):
         if not self.policy.include_next(entry, history):
             return False, history
-        history.append(entry)
-        to_remove = self.policy.cull(history)
         new_history = []
-        for entry in history:
-            if entry["serial"] in to_remove:
-                if self.culler is not None:
-                    self.culler(entry)
-            else:
-                new_history.append(entry)
+        if calculate_history:
+            history.append(entry)
+            to_remove = self.policy.cull(history)
+            for entry in history:
+                if entry["serial"] in to_remove:
+                    if self.culler is not None:
+                        self.culler(entry)
+                else:
+                    new_history.append(entry)
         return True, new_history
