@@ -43,14 +43,14 @@ class TorchSerializer:
 class State:
     def __init__(self):
         self.values = {}
-        self._directory = None
         self._loaded = False
         self._metadata = None
+        self.basedir = None
         self.configure(
             key=None,
             serializer=JSONSerializer(),
             retain=every(1),
-            basedir=".",
+            basedir=None,
         )
 
     @property
@@ -73,7 +73,7 @@ class State:
         if self._loaded:
             raise Exception("Cannot configure the state object after loading.")
         if basedir is not None:
-            self.basedir = Path(basedir)
+            self.basedir = False if basedir is False else Path(basedir)
         if retain is not None:
             self.retain = RetentionApplicator(policy=retain, culler=self._cull)
         if serializer is not None:
@@ -81,8 +81,11 @@ class State:
         if key is not None:
             self.key = key
             self.keyhash = md5(json.dumps(key).encode("utf8")).hexdigest()
-            self.directory = self.basedir / self.keyhash
-            self._latest = self.serializer.extension(self.directory / "latest")
+            if self.basedir:
+                self.directory = self.basedir / self.keyhash
+                self._latest = self.serializer.extension(self.directory / "latest")
+            else:
+                self.directory = self._latest = None
 
     def _cull(self, entry):
         pth = Path(entry["fullpath"])
@@ -109,7 +112,22 @@ class State:
             self.values[item] = default
         return self.values[item]
 
+    def _has_basedir(self):
+        if self.basedir is None:
+            raise Exception(
+                "The basedir for this state has not been set --"
+                " either set it to a directory on the filesystem or to"
+                " the special value False to disable tracking."
+            )
+        elif self.basedir is False:
+            return False
+        else:
+            return True
+
     def load(self, force=False):
+        if not self._has_basedir():
+            return {}
+
         self.directory.mkdir(parents=True, exist_ok=True)
         if force or not self._loaded:
             self._loaded = True
@@ -120,7 +138,7 @@ class State:
         return self.values
 
     def load_metadata(self):
-        if self._metadata is not None:
+        if self._metadata is not None or not self._has_basedir():
             return
         metafile = self.directory / "metadata.json"
         if metafile.exists():
@@ -137,11 +155,16 @@ class State:
             self.save_metadata()
 
     def save_metadata(self):
+        if not self._has_basedir():
+            return
         self.directory.mkdir(parents=True, exist_ok=True)
         metafile = self.directory / "metadata.json"
         json.dump(fp=metafile.open("w"), obj=self._metadata, indent=4)
 
     def save(self):
+        if not self._has_basedir():
+            return
+
         self.load_metadata()
         snapshot_file = self.snapshot_file()
         entry = {
